@@ -17,6 +17,55 @@ export default function CardStack({ trivias }: CardStackProps) {
     const [seenIds, setSeenIds] = useState<string[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
+    // 効果音再生用の軽量ヘルパー (Web Audio API)
+    const playSound = (type: 'swipe_left' | 'swipe_right' | 'button') => {
+        try {
+            const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+            const ctx = new AudioContextClass();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            const now = ctx.currentTime;
+
+            if (type === 'swipe_right') {
+                // いいね！の明るい音 (ピロリン♪)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'swipe_left') {
+                // スキップ時の軽い音 (シュッ)
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'button') {
+                // ボタンタップ音
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+        } catch (e) {
+            // 一部のブラウザで自動再生ポリシーに引っかかった場合は無視する
+            console.log('Audio playback blocked or not supported');
+        }
+    };
+
     // 初回マウント時にLocalStorageから既読履歴を取得
     useEffect(() => {
         const saved = localStorage.getItem("seenTriviaIds");
@@ -70,9 +119,11 @@ export default function CardStack({ trivias }: CardStackProps) {
         const currentId = deck[currentIndex]?.id;
         if (currentId) markAsSeen(currentId);
 
-        console.log("Liked:", currentId);
         if (currentId && !currentId.startsWith("ad-")) {
             setShowLikeEffect(true);
+            playSound('swipe_right');
+        } else {
+            playSound('swipe_left'); // 広告の場合は大げさに鳴らさない
         }
         nextCard();
     };
@@ -81,7 +132,7 @@ export default function CardStack({ trivias }: CardStackProps) {
         const currentId = deck[currentIndex]?.id;
         if (currentId) markAsSeen(currentId);
 
-        console.log("Skipped:", currentId);
+        playSound('swipe_left');
         nextCard();
     };
 
@@ -118,7 +169,10 @@ export default function CardStack({ trivias }: CardStackProps) {
                         <span className="text-6xl mb-4">🎉</span>
                         <p className="text-xl font-bold">すべての雑学を見終わりました！</p>
                         <button
-                            onClick={handleRestart}
+                            onClick={() => {
+                                playSound('button');
+                                handleRestart();
+                            }}
                             className="mt-6 px-6 py-3 bg-white text-purple-600 rounded-full font-bold shadow-lg hover:scale-105 active:scale-95 transition-transform"
                         >
                             もう一度見る

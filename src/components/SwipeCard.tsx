@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { Trivia } from "@/types/trivia";
+import { Share2 } from "lucide-react";
 
 interface SwipeCardProps {
     trivia: Trivia;
@@ -34,7 +35,6 @@ export default function SwipeCard({
         info: { offset: { x: number; y: number } }
     ) => {
         const offset = info.offset.x;
-        const velocity = info.offset.x; // 簡易的にoffsetを速度代わり/移動量として判定
         const threshold = 100;
 
         if (offset > threshold) {
@@ -49,6 +49,13 @@ export default function SwipeCard({
             // 元の位置に戻る
             controls.start({ x: 0, y: 0, transition: { type: "spring", stiffness: 300, damping: 20 } });
         }
+    };
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation(); // ドラッグやスワイプの誤爆を防ぐ
+        const text = encodeURIComponent(`【雑学】${trivia.content}\n\n#雑学 #豆知識 #TRIVIA`);
+        const url = `https://twitter.com/intent/tweet?text=${text}`;
+        window.open(url, '_blank');
     };
 
     return (
@@ -113,12 +120,22 @@ export default function SwipeCard({
             </p>
 
             {/* スポンサーの場合に追加のアクションボタンを表示（強すぎないデザイン） */}
-            {trivia.category === "スポンサー" && (
+            {trivia.category === "スポンサー" ? (
                 <button
                     className="mt-8 bg-indigo-50 text-indigo-500 border border-indigo-100 font-bold py-3 px-8 rounded-full shadow-sm pointer-events-none"
                 >
                     詳しく見る ＞
                 </button>
+            ) : (
+                isActive && (
+                    <button
+                        onClick={handleShare}
+                        className="absolute bottom-6 right-6 p-3 bg-gray-50 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors z-20"
+                        title="Xでシェアする"
+                    >
+                        <Share2 size={24} />
+                    </button>
+                )
             )}
         </motion.div>
     );
