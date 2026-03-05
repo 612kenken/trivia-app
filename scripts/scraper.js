@@ -27,13 +27,31 @@ const getEmoji = (category) => {
 };
 
 const scrapeTrivias = async () => {
-    console.log('スクレイピングを開始します（複数ソース版）...');
-    let results = [];
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+
+    console.log(`スクレイピングを開始します（${month}月${day}日版）...`);
+
+    // 既存のデータを読み込む
+    let existingData = [];
+    if (fs.existsSync(OUTPUT_FILE)) {
+        const rawData = fs.readFileSync(OUTPUT_FILE, 'utf-8');
+        try {
+            existingData = JSON.parse(rawData);
+        } catch (e) {
+            console.warn("既存のJSONパースに失敗しました。空配列から開始します。");
+        }
+    }
+
+    // 重複チェック用のSetを作成
+    const existingContents = new Set(existingData.map(item => item.content));
+    let newResults = [];
 
     try {
         // ---- 1. Wikipedia「今日は何の日」から歴史雑学 ----
-        console.log('[1/2] Wikipedia: 3月5日の出来事を取得中...');
-        const res1 = await fetch('https://ja.wikipedia.org/wiki/3%E6%9C%885%E6%97%A5');
+        console.log(`[1/2] Wikipedia: ${month}月${day}日の出来事を取得中...`);
+        const res1 = await fetch(`https://ja.wikipedia.org/wiki/${month}%E6%9C%88${day}%E6%97%A5`);
         const html1 = await res1.text();
 
         const liRegex = /<li>(.*?)<\/li>/g;
@@ -47,11 +65,15 @@ const scrapeTrivias = async () => {
 
             if (text.includes(' - ') && text.length > 20 && text.length < 150) {
                 const parts = text.split(' - ');
-                const content = `${parts[0].trim()}のこの日、${parts.slice(1).join(' - ').trim()}。`;
-                const category = getCategory(content);
+                const content = `${parts[0].trim()}の今日（${month}月${day}日）、${parts.slice(1).join(' - ').trim()}。`;
 
-                results.push({ id: `s-${results.length + 1}`, category, content, emoji: getEmoji(category) });
-                count1++;
+                // 新規データの場合のみ追加
+                if (!existingContents.has(content)) {
+                    const category = getCategory(content);
+                    newResults.push({ id: `s-daily-${Date.now()}-${newResults.length}`, category, content, emoji: getEmoji(category) });
+                    existingContents.add(content);
+                    count1++;
+                }
             }
         }
 
@@ -75,7 +97,10 @@ const scrapeTrivias = async () => {
                     let sentence = text.split('。')[0];
                     if (sentence.length > 20 && sentence.length < 100) {
                         const content = sentence + "。";
-                        results.push({ id: `s-${results.length + 1}`, category: '動物', content, emoji: '🐾' });
+                        if (!existingContents.has(content)) {
+                            newResults.push({ id: `s-animal-${Date.now()}-${newResults.length}`, category: '動物', content, emoji: '🐾' });
+                            existingContents.add(content);
+                        }
                         break; // 1つの動物につき1面白知識
                     }
                 }
@@ -97,14 +122,19 @@ const scrapeTrivias = async () => {
         ];
 
         for (const bt of bonusTrivias) {
-            const cat = getCategory(bt);
-            results.push({ id: `s-${results.length + 1}`, category: cat, content: bt, emoji: getEmoji(cat) });
+            if (!existingContents.has(bt)) {
+                const cat = getCategory(bt);
+                newResults.push({ id: `s-bonus-${Date.now()}-${newResults.length}`, category: cat, content: bt, emoji: getEmoji(cat) });
+                existingContents.add(bt);
+            }
         }
 
-        console.log(`合計 ${results.length} 件の雑学を取得しました。`);
+        console.log(`新規に取得した雑学は ${newResults.length} 件です。`);
 
-        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2), 'utf-8');
-        console.log(`データを保存しました: ${OUTPUT_FILE}`);
+        // 既存のデータと結合して保存
+        const combinedData = [...existingData, ...newResults];
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(combinedData, null, 2), 'utf-8');
+        console.log(`データを保存しました。総件数: ${combinedData.length} 件 (${OUTPUT_FILE})`);
 
     } catch (error) {
         console.error('スクレイピング中にエラーが発生しました:', error);
