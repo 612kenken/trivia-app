@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SwipeCard from "./SwipeCard";
 import LikeEffect from "./LikeEffect";
 import { Trivia } from "@/types/trivia";
@@ -11,17 +11,25 @@ interface CardStackProps {
 }
 
 export default function CardStack({ trivias }: CardStackProps) {
+    const [deck, setDeck] = useState<Trivia[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [showLikeEffect, setShowLikeEffect] = useState(false);
 
+    // カテゴリが変更された時、または初期ロード時にデータをシャッフルしてセット
+    useEffect(() => {
+        const shuffled = [...trivias].sort(() => Math.random() - 0.5);
+        setDeck(shuffled);
+        setCurrentIndex(0);
+    }, [trivias]);
+
     const handleSwipeRight = () => {
-        console.log("Liked:", trivias[currentIndex]?.id);
+        console.log("Liked:", deck[currentIndex]?.id);
         setShowLikeEffect(true);
         nextCard();
     };
 
     const handleSwipeLeft = () => {
-        console.log("Skipped:", trivias[currentIndex]?.id);
+        console.log("Skipped:", deck[currentIndex]?.id);
         nextCard();
     };
 
@@ -31,7 +39,16 @@ export default function CardStack({ trivias }: CardStackProps) {
         }, 200);
     };
 
-    const isFinished = currentIndex >= trivias.length;
+    const handleRestart = () => {
+        const shuffled = [...trivias].sort(() => Math.random() - 0.5);
+        setDeck(shuffled);
+        setCurrentIndex(0);
+    };
+
+    const isReady = deck.length > 0;
+    const isFinished = isReady && currentIndex >= deck.length;
+
+    if (!isReady) return null;
 
     return (
         <div className="flex flex-col flex-1 items-center w-full max-w-sm mx-auto justify-center relative mt-16">
@@ -41,14 +58,14 @@ export default function CardStack({ trivias }: CardStackProps) {
                         <span className="text-6xl mb-4">🎉</span>
                         <p className="text-xl font-bold">すべての雑学を見終わりました！</p>
                         <button
-                            onClick={() => setCurrentIndex(0)}
+                            onClick={handleRestart}
                             className="mt-6 px-6 py-3 bg-white text-purple-600 rounded-full font-bold shadow-lg hover:scale-105 active:scale-95 transition-transform"
                         >
                             もう一度見る
                         </button>
                     </div>
                 ) : (
-                    trivias.map((trivia, index) => {
+                    deck.map((trivia, index) => {
                         // 現在のインデックスより前のカードは表示しない
                         if (index < currentIndex) return null;
                         // 現在のインデックスから3枚先まで描画する
@@ -58,7 +75,7 @@ export default function CardStack({ trivias }: CardStackProps) {
                         // 下にあるカードほど小さく、下にずらし、不透明度を下げる
                         const offset = (index - currentIndex) * 8;
                         const scale = 1 - (index - currentIndex) * 0.05;
-                        const zIndex = trivias.length - index;
+                        const zIndex = deck.length - index;
 
                         return (
                             <div
