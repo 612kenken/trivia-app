@@ -14,22 +14,54 @@ export default function CardStack({ trivias }: CardStackProps) {
     const [deck, setDeck] = useState<Trivia[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [showLikeEffect, setShowLikeEffect] = useState(false);
+    const [seenIds, setSeenIds] = useState<string[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    // カテゴリが変更された時、または初期ロード時にデータをシャッフルしてセット
+    // 初回マウント時にLocalStorageから既読履歴を取得
     useEffect(() => {
-        const shuffled = [...trivias].sort(() => Math.random() - 0.5);
+        const saved = localStorage.getItem("seenTriviaIds");
+        if (saved) {
+            try {
+                setSeenIds(JSON.parse(saved));
+            } catch (e) {
+                console.error("Local storage parse error:", e);
+            }
+        }
+        setIsLoaded(true);
+    }, []);
+
+    // カテゴリが変更された時、または履歴ロード完了時に未読データのみでデッキをシャッフル
+    useEffect(() => {
+        if (!isLoaded) return;
+        const unseen = trivias.filter((t) => !seenIds.includes(t.id));
+        const shuffled = [...unseen].sort(() => Math.random() - 0.5);
         setDeck(shuffled);
         setCurrentIndex(0);
-    }, [trivias]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trivias, isLoaded]);
+
+    const markAsSeen = (id: string) => {
+        setSeenIds((prev) => {
+            const next = Array.from(new Set([...prev, id]));
+            localStorage.setItem("seenTriviaIds", JSON.stringify(next));
+            return next;
+        });
+    };
 
     const handleSwipeRight = () => {
-        console.log("Liked:", deck[currentIndex]?.id);
+        const currentId = deck[currentIndex]?.id;
+        if (currentId) markAsSeen(currentId);
+
+        console.log("Liked:", currentId);
         setShowLikeEffect(true);
         nextCard();
     };
 
     const handleSwipeLeft = () => {
-        console.log("Skipped:", deck[currentIndex]?.id);
+        const currentId = deck[currentIndex]?.id;
+        if (currentId) markAsSeen(currentId);
+
+        console.log("Skipped:", currentId);
         nextCard();
     };
 
@@ -40,15 +72,23 @@ export default function CardStack({ trivias }: CardStackProps) {
     };
 
     const handleRestart = () => {
+        // 現在のカード一覧のIDを既読リストから除外し、このカテゴリだけ「一から見直す」
+        const currentCategoryIds = trivias.map((t) => t.id);
+        const newSeenIds = seenIds.filter((id) => !currentCategoryIds.includes(id));
+
+        setSeenIds(newSeenIds);
+        localStorage.setItem("seenTriviaIds", JSON.stringify(newSeenIds));
+
         const shuffled = [...trivias].sort(() => Math.random() - 0.5);
         setDeck(shuffled);
         setCurrentIndex(0);
     };
 
     const isReady = deck.length > 0;
-    const isFinished = isReady && currentIndex >= deck.length;
+    const isFinished = isLoaded && (!isReady || currentIndex >= deck.length);
 
-    if (!isReady) return null;
+    // DOMハイドレーションエラーとちらつき防止のため初回ロード完了まで非表示
+    if (!isLoaded) return null;
 
     return (
         <div className="flex flex-col flex-1 items-center w-full max-w-sm mx-auto justify-center relative mt-16">
