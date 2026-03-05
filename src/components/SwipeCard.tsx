@@ -65,7 +65,7 @@ export default function SwipeCard({
             initial={false}
         >
             {/* いいね・スキップのインジケーター */}
-            {isActive && (
+            {isActive && trivia.category !== "スポンサー" && (
                 <>
                     <motion.div
                         style={{ opacity: likeOpacity }}
@@ -82,13 +82,44 @@ export default function SwipeCard({
                 </>
             )}
 
+            {/* スポンサー用インジケーター（押し付けがましくないマイルドな色味） */}
+            {isActive && trivia.category === "スポンサー" && (
+                <>
+                    <motion.div
+                        style={{ opacity: likeOpacity }}
+                        className="absolute top-8 left-8 border-4 border-indigo-400 text-indigo-400 text-2xl font-bold uppercase py-2 px-4 rounded-xl -rotate-12"
+                    >
+                        CHECK✨
+                    </motion.div>
+                    <motion.div
+                        style={{ opacity: nopeOpacity }}
+                        className="absolute top-8 right-8 border-4 border-slate-300 text-slate-400 text-2xl font-bold uppercase py-2 px-4 rounded-xl rotate-12"
+                    >
+                        SKIP
+                    </motion.div>
+                </>
+            )}
+
             <div className="text-6xl mb-6">{trivia.emoji}</div>
-            <div className="text-sm font-semibold text-gray-500 tracking-wider mb-4 border border-gray-200 rounded-full px-4 py-1">
+            <div className={`text-sm tracking-wider mb-4 border rounded-full px-4 py-1
+                ${trivia.category === "スポンサー" ? "text-indigo-500 border-indigo-100 bg-indigo-50/50" : "font-semibold text-gray-500 border-gray-200"}`
+            }>
                 {trivia.category}
             </div>
-            <p className="text-2xl md:text-3xl font-bold text-gray-800 text-center leading-relaxed">
+            <p className={`text-2xl md:text-3xl font-bold text-center leading-relaxed
+                ${trivia.category === "スポンサー" ? "text-indigo-900/80" : "text-gray-800"}`
+            }>
                 {trivia.content}
             </p>
+
+            {/* スポンサーの場合に追加のアクションボタンを表示（強すぎないデザイン） */}
+            {trivia.category === "スポンサー" && (
+                <button
+                    className="mt-8 bg-indigo-50 text-indigo-500 border border-indigo-100 font-bold py-3 px-8 rounded-full shadow-sm pointer-events-none"
+                >
+                    詳しく見る ＞
+                </button>
+            )}
         </motion.div>
     );
 }

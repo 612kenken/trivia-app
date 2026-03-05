@@ -1,11 +1,12 @@
 export type Category =
     | "宇宙"
     | "動物"
+    | "人体"
     | "歴史"
+    | "IT・テクノロジー"
     | "科学"
     | "日常"
-    | "人体"
-    | "IT・テクノロジー";
+    | "スポンサー";
 
 export interface Trivia {
     id: string;

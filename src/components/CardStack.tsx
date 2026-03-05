@@ -30,17 +30,35 @@ export default function CardStack({ trivias }: CardStackProps) {
         setIsLoaded(true);
     }, []);
 
+    // 広告を一定間隔（例：5枚ごと）で差し込むヘルパー関数
+    const insertAds = (shuffledCards: Trivia[]) => {
+        const withAds: Trivia[] = [];
+        shuffledCards.forEach((card, i) => {
+            if (i > 0 && i % 4 === 0) {
+                withAds.push({
+                    id: `ad-${Date.now()}-${i}`,
+                    category: "スポンサー",
+                    content: "ここに広告やおすすめ商品（アフィリエイトなど）が表示されます。タップして詳細をチェック！",
+                    emoji: "📢"
+                });
+            }
+            withAds.push(card);
+        });
+        return withAds;
+    };
+
     // カテゴリが変更された時、または履歴ロード完了時に未読データのみでデッキをシャッフル
     useEffect(() => {
         if (!isLoaded) return;
         const unseen = trivias.filter((t) => !seenIds.includes(t.id));
         const shuffled = [...unseen].sort(() => Math.random() - 0.5);
-        setDeck(shuffled);
+        setDeck(insertAds(shuffled));
         setCurrentIndex(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trivias, isLoaded]);
 
     const markAsSeen = (id: string) => {
+        if (id.startsWith("ad-")) return; // 広告は履歴に含めない
         setSeenIds((prev) => {
             const next = Array.from(new Set([...prev, id]));
             localStorage.setItem("seenTriviaIds", JSON.stringify(next));
@@ -53,7 +71,9 @@ export default function CardStack({ trivias }: CardStackProps) {
         if (currentId) markAsSeen(currentId);
 
         console.log("Liked:", currentId);
-        setShowLikeEffect(true);
+        if (currentId && !currentId.startsWith("ad-")) {
+            setShowLikeEffect(true);
+        }
         nextCard();
     };
 
@@ -80,7 +100,7 @@ export default function CardStack({ trivias }: CardStackProps) {
         localStorage.setItem("seenTriviaIds", JSON.stringify(newSeenIds));
 
         const shuffled = [...trivias].sort(() => Math.random() - 0.5);
-        setDeck(shuffled);
+        setDeck(insertAds(shuffled));
         setCurrentIndex(0);
     };
 
